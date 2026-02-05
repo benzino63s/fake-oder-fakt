@@ -2,101 +2,166 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fake oder Fakt?</title>
 <style>
-  body { font-family: Arial, sans-serif; background: #e3f2fd; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-  h1 { color: #0d47a1; }
-  .news-box { background: white; padding: 20px; border-radius: 10px; margin: 20px; max-width: 600px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);}
-  img { max-width: 100%; border-radius: 10px; margin-bottom: 10px; }
-  button { margin: 5px; padding: 10px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; }
-  .result { margin-top: 20px; font-weight: bold; }
-  .timer { font-size: 18px; color: #0d47a1; font-weight: bold; margin-bottom: 10px; }
+  body { font-family: Arial, sans-serif; margin:0; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; min-height:100vh; background: linear-gradient(to bottom, #e3f2fd, #bbdefb); }
+  
+  #header { display:flex; justify-content:space-between; align-items:center; width:90%; max-width:700px; margin:10px auto; }
+  #header h1 { font-size:clamp(1.8rem,4vw,2.5rem); margin:0; color:#0d47a1; }
+  #scoreDisplay { font-size:clamp(1rem,3vw,1.5rem); color:#0d47a1; font-weight:bold; }
+
+  #startMenu { text-align:center; margin-top:50px; }
+  #startMenu button { padding:1rem 2rem; font-size:1.3rem; border:none; border-radius:12px; background-color:#007bff; color:white; cursor:pointer; transition:0.3s; }
+  #startMenu button:hover { background-color:#0056b3; transform:scale(1.05); }
+
+  .news-box { background:white; padding:2rem 1rem; border-radius:20px; margin:1rem; width:90%; max-width:700px; min-height:350px; box-shadow:0 6px 18px rgba(0,0,0,0.3); display:flex; flex-direction:column; align-items:center; opacity:0; transform:translateY(20px); transition:0.5s; }
+  .news-box.show { opacity:1; transform:translateY(0); }
+
+  #newsText { font-size:clamp(1.2rem,2vw,2rem); text-align:center; border:2px solid #0d47a1; padding:1rem; border-radius:12px; width:100%; background:#f9f9f9; }
+
+  img { max-width:100%; max-height:40vh; border-radius:12px; margin-bottom:1rem; opacity:0; transition:0.5s; }
+
+  #choices { margin-top:10px; }
+  button.choice { margin:0.5rem; padding:0.7rem 1.5rem; font-size:1.2rem; border-radius:12px; cursor:pointer; }
+  .correct { background:#4CAF50; color:white; }
+  .wrong { background:#F44336; color:white; }
+
+  .timer { font-size:1.2rem; font-weight:bold; color:#0d47a1; }
+  #progressContainer { width:90%; max-width:700px; height:20px; background:#cfd8dc; border-radius:12px; overflow:hidden; }
+  #progressBar { height:100%; background:#0d47a1; transition:0.2s; }
+
+  #gameOver { display:none; text-align:center; padding:2rem; border-radius:15px; background:#f0f8ff; box-shadow:0 6px 18px rgba(0,0,0,0.3); max-width:500px; margin:3rem auto; opacity:0; transform:scale(0.8); transition:0.5s; }
+  #gameOver.show { opacity:1; transform:scale(1); }
 </style>
 </head>
+
 <body>
 
-<h1>Fake oder Fakt?</h1>
+<div id="header">
+  <h1>Fake oder Fakt?</h1>
+  <div id="scoreDisplay">Punkte: 0</div>
+</div>
 
-<div class="timer" id="timer">30</div>
+<div id="startMenu">
+  <button id="startButton">Spiel starten</button>
+</div>
 
-<div class="news-box" id="news">
-  <img id="newsImg" src="" alt="">
+<div class="timer" id="timer" style="display:none;">20</div>
+<div id="questionCount" style="display:none;"></div>
+<div id="progressContainer" style="display:none;">
+  <div id="progressBar"></div>
+</div>
+
+<div class="news-box" id="news" style="display:none;">
+  <img id="newsImg">
   <div id="newsText"></div>
 </div>
 
-<div>
-  <button onclick="choose('Fakt')">Fakt</button>
-  <button onclick="choose('Fake')">Fake</button>
-  <button onclick="choose('Unsicher')">Unsicher</button>
+<div id="choices" style="display:none;">
+  <button class="choice" onclick="choose('Fakt',this)">Fakt</button>
+  <button class="choice" onclick="choose('Fake',this)">Fake</button>
+  <button class="choice" onclick="choose('Unsicher',this)">Unsicher</button>
 </div>
 
 <div class="result" id="result"></div>
 
+<!-- GAME OVER -->
+<div id="gameOver">
+  <h2 id="gameOverTitle"></h2>
+  <p id="gameOverMessage"></p>
+  <p id="gameOverScore"></p>
+
+  <!-- НАПОМИНАЛКА -->
+  <div style="text-align:left;margin-top:1.5rem;font-size:0.95rem;">
+    <h3 style="text-align:center;color:#0d47a1;">🧐 Worauf muss man achten?</h3>
+    <ul>
+      <li>🔍 Quelle prüfen – ist sie seriös?</li>
+      <li>📅 Datum checken – ist die Nachricht aktuell?</li>
+      <li>📰 Überschrift und Inhalt vergleichen</li>
+      <li>📸 Bilder können manipuliert sein</li>
+      <li>🌐 Berichten mehrere Medien darüber?</li>
+      <li>⚠️ Extreme Aussagen = Fake-Alarm</li>
+    </ul>
+  </div>
+
+  <button onclick="restartGame()">Nochmals spielen</button>
+</div>
+
 <script>
 const newsList = [
-  {text: "Bundesregierung beschließt neues Klimaschutzgesetz", answer: "Fakt", explanation: "Die Bundesregierung hat das neue Gesetz offiziell beschlossen.", img: "https://upload.wikimedia.org/wikipedia/commons/8/87/Bundeskanzleramt_Berlin.jpg"},
-  {text: "Neue Impfung schützt vor allen Viren", answer: "Fake", explanation: "Das ist falsch. Impfungen schützen nur vor bestimmten Viren, nicht vor allen.", img: "https://upload.wikimedia.org/wikipedia/commons/1/12/Vaccine.jpg"},
-  {text: "Statistisches Bundesamt: Geburtenrate sinkt seit 2015", answer: "Fakt", explanation: "Das stimmt laut Destatis.", img: "https://upload.wikimedia.org/wikipedia/commons/2/28/Destatis_Logo.svg"},
-  {text: "Schokolade heilt Krebs in 7 Tagen", answer: "Fake", explanation: "Das ist eine Falschmeldung, es gibt keine solche Studie.", img: "https://upload.wikimedia.org/wikipedia/commons/7/70/Chocolate.jpg"},
-  {text: "UN-Bericht: Globale CO₂-Emissionen steigen weiterhin", answer: "Fakt", explanation: "Richtig. Quelle: https://www.unep.org/resources/emissions-gap-report-2023", img: "https://upload.wikimedia.org/wikipedia/commons/0/05/United_Nations_logo.svg"},
-  {text: "Facebook verbietet allen Nutzern über 50 die Anmeldung", answer: "Fake", explanation: "Falsch. So eine Regel gibt es nicht.", img: "https://upload.wikimedia.org/wikipedia/commons/5/51/Facebook_f_logo_%282019%29.svg"},
-  {text: "NASA veröffentlicht neue Bilder vom Mars", answer: "Fakt", explanation: "Richtig, der Marsrover liefert regelmäßig neue Bilder.", img: "https://upload.wikimedia.org/wikipedia/commons/0/02/Mars_NASA.jpg"},
-  {text: "Yoga verbessert die Schlafqualität", answer: "Fakt", explanation: "Studien zeigen, dass regelmäßiges Yoga den Schlaf verbessern kann.", img: "https://upload.wikimedia.org/wikipedia/commons/3/3a/Yoga_asana.jpg"},
-  {text: "In Deutschland wird Schokolade nach 22 Uhr verboten", answer: "Fake", explanation: "Das ist ein Meme, kein Gesetz.", img: "https://upload.wikimedia.org/wikipedia/commons/7/70/Chocolate.jpg"},
-  {text: "Lokale Zeitung: Strompreise steigen im nächsten Jahr", answer: "Fakt", explanation: "Richtig, laut offiziellen Mitteilungen steigen die Preise.", img: "https://upload.wikimedia.org/wikipedia/commons/5/5a/Electricity_Pylon.jpg"}
+  {text:"Bundesregierung beschließt neues Klimaschutzgesetz",answer:"Fakt",explanation:"Offiziell beschlossen.",img:"images/Bundeskanzleramt.jpg"},
+  {text:"Neue Impfung schützt vor allen Viren",answer:"Fake",explanation:"Nicht möglich.",img:"images/vaccine.jpg"},
+  {text:"Statistisches Bundesamt: Geburtenrate sinkt seit 2015",answer:"Fakt",explanation:"Richtig laut Destatis.",img:"images/geburtenrate.jpg"},
+  {text:"Schokolade heilt Krebs in 7 Tagen",answer:"Fake",explanation:"Keine Studie.",img:"images/schokolade.jpg"}
 ];
 
-let current = 0;
-let score = 0;
-let timeLeft = 30;
-let timerInterval;
+let current=0,score=0,timeLeft=20,timer;
 
-function showNews() {
-  if(current >= newsList.length){
-    clearInterval(timerInterval);
-    document.getElementById('newsText').innerHTML = "Spiel beendet! Dein Punktestand: " + score;
-    document.getElementById('newsImg').style.display = "none";
-    document.getElementById('result').innerHTML = "";
-    document.getElementById('timer').innerHTML = "";
-    return;
-  }
-  
-  document.getElementById('newsText').innerHTML = newsList[current].text;
-  document.getElementById('newsImg').src = newsList[current].img;
-  document.getElementById('newsImg').style.display = "block";
-  document.getElementById('result').innerHTML = "";
-  
-  timeLeft = 30;
-  document.getElementById('timer').innerHTML = timeLeft;
-  clearInterval(timerInterval);
-  timerInterval = setInterval(() => {
-    timeLeft--;
-    document.getElementById('timer').innerHTML = timeLeft;
-    if(timeLeft <= 0){
-      clearInterval(timerInterval);
-      document.getElementById('result').innerHTML = "Zeit vorbei! ❌ " + newsList[current].explanation;
-      current++;
-      setTimeout(showNews, 3000);
-    }
-  }, 1000);
+document.getElementById("startButton").onclick=startGame;
+
+function startGame(){
+ document.getElementById("startMenu").style.display="none";
+ document.getElementById("news").style.display="flex";
+ document.getElementById("choices").style.display="block";
+ document.getElementById("timer").style.display="block";
+ document.getElementById("progressContainer").style.display="block";
+ shuffle(newsList);
+ current=0; score=0;
+ showNews();
 }
 
-function choose(option){
-  clearInterval(timerInterval);
-  let correct = newsList[current].answer;
-  let explanation = newsList[current].explanation;
-  
-  if(option === correct){
-    score += 1;
-    document.getElementById('result').innerHTML = "Richtig! ✅ " + explanation + " | Punktestand: " + score;
-  } else {
-    document.getElementById('result').innerHTML = "Falsch! ❌ " + explanation + " | Punktestand: " + score;
-  }
-  current += 1;
-  setTimeout(showNews, 3000);
+function shuffle(a){
+ for(let i=a.length-1;i>0;i--){
+  const j=Math.floor(Math.random()*(i+1));
+  [a[i],a[j]]=[a[j],a[i]];
+ }
 }
 
-showNews();
+function showNews(){
+ if(current>=newsList.length){ showGameOver(score); return; }
+ document.getElementById("newsText").innerText=newsList[current].text;
+ document.getElementById("newsImg").src=newsList[current].img;
+ timeLeft=20;
+ clearInterval(timer);
+ timer=setInterval(()=>{
+  timeLeft--;
+  document.getElementById("timer").innerText=timeLeft;
+  document.getElementById("progressBar").style.width=(timeLeft/20*100)+"%";
+  if(timeLeft<=0){ clearInterval(timer); current++; showNews(); }
+ },1000);
+}
+
+function choose(opt){
+ clearInterval(timer);
+ if(opt===newsList[current].answer) score++;
+ document.getElementById("scoreDisplay").innerText="Punkte: "+score;
+ current++;
+ setTimeout(showNews,1500);
+}
+
+function showGameOver(score){
+ document.getElementById("news").style.display="none";
+ document.getElementById("choices").style.display="none";
+ document.getElementById("timer").style.display="none";
+ document.getElementById("progressContainer").style.display="none";
+
+ const go=document.getElementById("gameOver");
+ if(score>=Math.ceil(newsList.length/2)){
+  document.getElementById("gameOverTitle").innerText="🎉 Du hast gewonnen!";
+ } else {
+  document.getElementById("gameOverTitle").innerText="😞 Du hast verloren!";
+ }
+ document.getElementById("gameOverScore").innerText="Punkte: "+score;
+ go.style.display="block";
+ setTimeout(()=>go.classList.add("show"),50);
+}
+
+function restartGame(){
+ document.getElementById("gameOver").style.display="none";
+ document.getElementById("gameOver").classList.remove("show");
+ startGame();
+}
 </script>
 
 </body>
